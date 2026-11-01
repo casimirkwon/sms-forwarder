@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- SMS 전달에 필요한 권한만 선언한다. 수신(RECEIVE_SMS·READ_SMS·RECEIVE_MMS)·발송(SEND_SMS)·SIM 정보(READ_PHONE_STATE·READ_PHONE_NUMBERS)·
+         보낸이 이름 조회(READ_CONTACTS)·상주 서비스·부팅 후 재시작·절전 중 처리에 쓴다. INTERNET 은 넣지 않는다(외부 통신 없음). -->
+    <uses-permission android:name="android.permission.RECEIVE_SMS" />
+    <uses-permission android:name="android.permission.READ_SMS" />
+    <uses-permission android:name="android.permission.RECEIVE_MMS" />
+    <uses-permission android:name="android.permission.SEND_SMS" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <uses-permission android:name="android.permission.READ_PHONE_NUMBERS" />
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- 지연 전달 알람(setExactAndAllowWhileIdle)은 API 30 이하에서만 쓰므로 정확 알람 권한을 선언하지 않는다.
+         모든 API 에서 지연 전달을 켜려면 README '지연 전달 켜는 방법'의 USE_EXACT_ALARM / SCHEDULE_EXACT_ALARM 선언을 추가한다. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- 알림 규칙의 대상 앱을 고르는 목록에 설치된 앱 전체를 보여 주기 위해. 사이드로드 전용이라 Play 정책 제약은 없다. -->
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+
+    <uses-feature android:name="android.hardware.telephony" android:required="false" />
+
+    <application
+        android:name=".App"
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.SmsForwarder">
+
+        <activity
+            android:name=".ui.MainActivity"
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- SMS 수신: 기본 문자 앱이 아니라 브로드캐스트만 받는다. BROADCAST_SMS 로 시스템만 보낼 수 있게 했다. -->
+        <receiver
+            android:name=".sms.SmsReceiver"
+            android:exported="true"
+            android:permission="android.permission.BROADCAST_SMS">
+            <intent-filter android:priority="2147483647">
+                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- MMS 알림(WAP push): SMS 수신과 별도의 수신기가 받는다. 본문은 3초 뒤 content://mms 에서 읽는다(텍스트 파트만 전달). -->
+        <receiver
+            android:name=".sms.WapPushReceiver"
+            android:exported="true"
+            android:permission="android.permission.BROADCAST_WAP_PUSH">
+            <intent-filter android:priority="2147483647">
+                <action android:name="android.provider.Telephony.WAP_PUSH_RECEIVED" />
+                <data android:mimeType="application/vnd.wap.mms-message" />
+            </intent-filter>
+        </receiver>
+
+        <!-- 서비스 모드(API 30 이하 또는 "포그라운드 서비스 사용")의 상주 서비스. 문자 중계에 맞는 remoteMessaging 타입 -->
+        <service
+            android:name=".sms.ForwardingService"
+            android:exported="false"
+            android:foregroundServiceType="remoteMessaging" />
+
+        <!-- 알림 리스너: 시스템만 바인드할 수 있게 BIND_NOTIFICATION_LISTENER_SERVICE 를 요구하고, 시스템이 찾을 수 있도록 exported 로 둔다. 사용자가 알림 접근을 허용해야 연결된다. -->
+        <service
+            android:name=".capture.NotificationCapture"
+            android:exported="true"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+        <!-- 전송 결과(MESSAGE_SENT, 명시적 PendingIntent)와 부팅·업데이트 후 처리 -->
+        <receiver
+            android:name=".sms.SystemReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

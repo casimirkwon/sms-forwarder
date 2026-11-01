@@ -1,0 +1,8 @@
+sms-forwarder
+Copyright 2026 casimir
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+It uses the following open-source libraries (Apache License 2.0 unless noted):
+  - AndroidX (Core, Activity, Lifecycle, Compose, Room, WorkManager, DataStore)
+  - Kotlin and kotlinx.coroutines
